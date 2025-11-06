@@ -14,7 +14,6 @@ import {
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  ArrowTrendingUpIcon,
   DocumentChartBarIcon,
   LightBulbIcon,
   ClipboardDocumentListIcon,
@@ -41,7 +40,7 @@ const Layout = () => {
     { name: 'ML Recommendations', href: '/dashboard/recommendations', icon: SparklesIcon },
     { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: LightBulbIcon },
     { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-    { name: 'Performance', href: '/dashboard/performance', icon: ArrowTrendingUpIcon },
+    // Performance page removed
     { name: 'Reports', href: '/dashboard/reports', icon: DocumentChartBarIcon },
     { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
   ];

@@ -8,7 +8,6 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import Reports from "./pages/Reports";
-import Performance from "./pages/Performance";
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -80,7 +79,7 @@ function App() {
                 {/* Business Insights page removed */}
                 <Route path="profile" element={<Profile />} />
                 <Route path="reports" element={<Reports />} />
-                <Route path="performance" element={<Performance />} />
+                {/* Performance page removed */}
                 <Route path="settings" element={<Settings />} />
               </Route>
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
