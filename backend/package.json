@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+  "seed:admin": "node scripts/seed_admin_and_products.js",
+    "count:orders": "node scripts/count_orders.js",
     "test": "jest",
     "lint": "eslint src/**/*.js"
   },
@@ -35,6 +37,7 @@
     "ml-kmeans": "^6.0.0",
     "ml-knn": "^3.0.0",
     "ml-matrix": "^6.10.9",
+    "mongodb": "^5.9.2",
     "mongoose": "^8.0.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",

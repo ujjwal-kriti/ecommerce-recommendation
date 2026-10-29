@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../services/apiService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import SpendingCharts from '../components/analytics/SpendingCharts';
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
@@ -14,31 +15,208 @@ const Analytics = () => {
   const [productAnalytics, setProductAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30');
+  const [customDays, setCustomDays] = useState(30);
+  const [allTimeOrders, setAllTimeOrders] = useState(null);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [timeRange]);
+  }, [timeRange, customDays]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
+      const effectiveRange = timeRange === 'custom' ? String(customDays) : timeRange;
+
       const [analyticsResponse, productResponse] = await Promise.all([
-        apiService.getAnalytics(timeRange),
+        apiService.getAnalytics(effectiveRange),
         apiService.getProductAnalytics(10),
       ]);
 
-      if (analyticsResponse.success) {
-        setAnalytics(analyticsResponse.data);
+      let analyticsData = null;
+      if (analyticsResponse && analyticsResponse.success) {
+        analyticsData = analyticsResponse.data;
       }
 
-      if (productResponse.success) {
+      if (productResponse && productResponse.success) {
         setProductAnalytics(productResponse.data);
+      }
+
+      // If analytics missing spending patterns, fallback to compute from orders (including demo orders)
+      const shouldComputeFromOrders = !analyticsData || !analyticsData.spendingPatterns ||
+        !Array.isArray(analyticsData.spendingPatterns.monthlySpending) || analyticsData.spendingPatterns.monthlySpending.length === 0 ||
+        !Array.isArray(analyticsData.spendingPatterns.categorySpending);
+
+      if (shouldComputeFromOrders) {
+        try {
+          const ordersResp = await apiService.getOrders();
+          const orders = ordersResp && ordersResp.success ? ordersResp.data : [];
+
+          let computed;
+          if ((!orders || orders.length === 0) && productResponse && productResponse.success) {
+            // If there are no orders, derive spending approximately from product analytics
+            const prodData = productResponse.data;
+            computed = computeSpendingFromProducts(prodData, timeRange);
+          } else {
+            computed = computeSpendingFromOrders(orders, timeRange);
+          }
+
+          analyticsData = analyticsData || {};
+          analyticsData.spendingPatterns = computed.spendingPatterns;
+          analyticsData.orderMetrics = analyticsData.orderMetrics || computed.orderMetrics;
+          analyticsData.recommendationMetrics = analyticsData.recommendationMetrics || { totalRecommendations: 0, clickThroughRate: 0, conversionRate: 0 };
+        } catch (err) {
+          console.error('Error computing analytics from orders:', err);
+        }
+      }
+
+      // If totals are still zero, try to fetch a lightweight orders summary and extract total from pagination/meta
+      const extractTotalFromResp = (r) => {
+        if (!r) return 0;
+        const body = r?.data ?? r;
+        if (typeof body.total === 'number') return body.total;
+        if (body.pagination && typeof body.pagination.total === 'number') return body.pagination.total;
+        if (body.meta && typeof body.meta.total === 'number') return body.meta.total;
+        if (body.orders && typeof body.orders.total === 'number') return body.orders.total;
+        if (body.data && typeof body.data.total === 'number') return body.data.total;
+        return 0;
+      };
+
+      if (analyticsData && analyticsData.orderMetrics && (!analyticsData.orderMetrics.totalOrders || analyticsData.orderMetrics.totalOrders === 0)) {
+        try {
+          const rawOrdersResp = await apiService.get('/orders?limit=1');
+          // apiService.get returns interceptor-unwrapped body in many cases
+          const totalFromMeta = extractTotalFromResp(rawOrdersResp);
+          if (totalFromMeta > 0) {
+            analyticsData.orderMetrics.totalOrders = totalFromMeta;
+            console.debug('Analytics: extracted totalOrders from /orders metadata ->', totalFromMeta);
+          } else {
+            console.debug('Analytics: no total found in /orders metadata, raw response:', rawOrdersResp);
+          }
+        } catch (e) {
+          console.debug('Analytics: fallback /orders metadata fetch failed', e.message || e);
+        }
+      }
+
+      if (analyticsData) setAnalytics(analyticsData);
+
+      // Also fetch all-time total orders (from orders metadata) so analytics can show both range and all-time
+      try {
+        const rawAll = await apiService.get('/orders?limit=1');
+        const body = rawAll?.data ?? rawAll;
+        const totalAll = typeof body.total === 'number' ? body.total : (body.pagination?.total ?? body.meta?.total ?? body.data?.total ?? 0);
+        if (totalAll && totalAll > 0) setAllTimeOrders(totalAll);
+      } catch (e) {
+        console.debug('Analytics: failed to fetch all-time orders metadata', e?.message || e);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Estimate spending from product analytics (topProducts / mostViewed) when order history is not available
+  const computeSpendingFromProducts = (prodData, timeRangeDays = '30') => {
+    const categoryMap = new Map();
+    let totalOrders = 0;
+    let totalSpent = 0;
+
+    const collect = (arr) => {
+      (arr || []).forEach(p => {
+        try {
+          const purchases = p.analytics?.purchases || p.purchases || 0;
+          const price = p.price?.discountedPrice || p.price?.mrp || 0;
+          const amount = purchases * price;
+          totalOrders += purchases;
+          totalSpent += amount;
+          const category = p.category || p.product?.category || 'Uncategorized';
+          categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
+        } catch (e) {
+          // ignore
+        }
+      });
+    };
+
+    collect(prodData?.topProducts || []);
+    collect(prodData?.mostViewed || []);
+
+    const categoriesArr = Array.from(categoryMap.entries()).map(([category, amount]) => ({ category, amount }));
+    categoriesArr.sort((a,b) => b.amount - a.amount);
+
+    // For monthly spending, we don't have timestamps; approximate as single bucket with total
+    const monthsArr = [{ month: new Date().toISOString().slice(0,7), amount: totalSpent }];
+
+    return {
+      spendingPatterns: {
+        monthlySpending: monthsArr,
+        categorySpending: categoriesArr
+      },
+      orderMetrics: {
+        totalOrders,
+        totalSpent,
+        averageOrderValue: totalOrders > 0 ? totalSpent / totalOrders : 0
+      }
+    };
+  };
+
+  // Compute monthly and category spending from orders (includes demo orders stored in localStorage)
+  const computeSpendingFromOrders = (orders, timeRangeDays = '30') => {
+    // timeRangeDays is a string like '30' (days)
+    const now = new Date();
+    const days = parseInt(timeRangeDays, 10) || 30;
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    // Initialize monthly buckets by month label in the selected range (group by YYYY-MM)
+    const monthMap = new Map();
+    const categoryMap = new Map();
+
+    let totalOrders = 0;
+    let totalSpent = 0;
+
+    orders.forEach(order => {
+      try {
+        const created = order.createdAt ? new Date(order.createdAt) : new Date();
+        if (created < since) return; // skip older than range
+
+        totalOrders += 1;
+
+        const items = order.items || [];
+        items.forEach(item => {
+          const qty = item.quantity || 1;
+          const price = (item.price != null) ? item.price : (item.productId?.price?.discountedPrice ?? item.product?.price?.discountedPrice ?? 0);
+          const amount = (price || 0) * qty;
+          totalSpent += amount;
+
+          // month key
+          const monthKey = `${created.getFullYear()}-${String(created.getMonth()+1).padStart(2,'0')}`;
+          monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + amount);
+
+          const category = item.productId?.category || item.product?.category || item.category || 'Uncategorized';
+          categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
+        });
+      } catch (e) {
+        // ignore
+      }
+    });
+
+    // Convert monthMap to ordered array of last N months (based on days window)
+    const monthsArr = Array.from(monthMap.entries()).map(([k,v]) => ({ month: k, amount: v }));
+    monthsArr.sort((a,b) => a.month.localeCompare(b.month));
+
+    const categoriesArr = Array.from(categoryMap.entries()).map(([category, amount]) => ({ category, amount }));
+    categoriesArr.sort((a,b) => b.amount - a.amount);
+
+    return {
+      spendingPatterns: {
+        monthlySpending: monthsArr,
+        categorySpending: categoriesArr
+      },
+      orderMetrics: {
+        totalOrders,
+        totalSpent,
+        averageOrderValue: totalOrders > 0 ? totalSpent / totalOrders : 0
+      }
+    };
   };
 
   const formatCurrency = (amount) => {
@@ -91,7 +269,22 @@ const Analytics = () => {
                   {range.label}
                 </option>
               ))}
+              <option value="custom" className="text-gray-900">Custom...</option>
             </select>
+
+            {timeRange === 'custom' && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={customDays}
+                  onChange={(e) => setCustomDays(Math.max(1, Math.min(365, Number(e.target.value || 0))))}
+                  className="w-20 bg-white/20 text-white border-none outline-none px-2 py-1 rounded-md text-sm"
+                />
+                <span className="text-sm text-blue-100">days</span>
+              </div>
+            )}
           </div>
         </div>
         
@@ -111,7 +304,10 @@ const Analytics = () => {
               <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
                 {analytics.orderMetrics.totalOrders}
               </div>
-              <div className="text-sm font-medium text-gray-600">Total Orders</div>
+              <div className="text-sm font-medium text-gray-600">
+                Total Orders
+                <div className="text-xs text-gray-400">All-time: {allTimeOrders !== null ? allTimeOrders : '—'}</div>
+              </div>
             </div>
 
             <div className="group bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 text-center">
@@ -144,7 +340,6 @@ const Analytics = () => {
               <div className="text-sm font-medium text-gray-600">Recommendation CTR</div>
             </div>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Monthly Spending Chart */}
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
@@ -230,6 +425,11 @@ const Analytics = () => {
               )}
             </div>
           </div>
+
+          {/* Visual charts (bar + doughnut) */}
+          {analytics.spendingPatterns && (
+            <SpendingCharts spendingPatterns={analytics.spendingPatterns} />
+          )}
 
           {/* Recommendation Performance */}
           <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-100">

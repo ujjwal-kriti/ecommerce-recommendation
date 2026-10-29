@@ -87,7 +87,8 @@ router.post('/register', async (req, res) => {
           name: user.name,
           email: user.email,
           businessType: user.businessType,
-          businessName: user.businessName
+          businessName: user.businessName,
+          role: user.role
         }
       }
     });
@@ -153,7 +154,8 @@ router.post('/login', async (req, res) => {
           email: user.email,
           businessType: user.businessType,
           businessName: user.businessName,
-          preferences: user.preferences
+          preferences: user.preferences,
+          role: user.role
         }
       }
     });
@@ -249,6 +251,68 @@ router.post('/seed-business-products', async (req, res) => {
       message: 'Error seeding products',
       error: error.message
     });
+  }
+});
+
+// Development-only: promote an existing user to admin
+router.post('/promote-to-admin', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ success: false, message: 'Not available in production' });
+    }
+
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.role = 'admin';
+    await user.save();
+
+    res.json({ success: true, message: `${user.email} promoted to admin`, data: { email: user.email, role: user.role } });
+  } catch (error) {
+    logger.error('Promote to admin error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Development-only: create or update a demo admin user and return its info
+router.post('/create-demo-admin', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ success: false, message: 'Not available in production' });
+    }
+
+    const { email, password, name } = req.body;
+    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password are required' });
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      // Update password and role
+      user.password = password;
+      user.role = 'admin';
+      user.isActive = true;
+      await user.save();
+    } else {
+      // Create a minimal user that satisfies required fields
+      user = await User.create({
+        name: name || 'Demo Admin',
+        email: email.toLowerCase(),
+        password,
+        businessType: 'grocery',
+        businessName: 'Demo Shop',
+        phone: '0000000000',
+        businessAddress: { street: 'Demo St', city: 'Demo City', state: 'Demo', zipCode: '000000' },
+        role: 'admin',
+        isActive: true
+      });
+    }
+
+    res.json({ success: true, message: 'Demo admin created/updated', data: { email: user.email, role: user.role } });
+  } catch (error) {
+    logger.error('Create demo admin error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

@@ -7,14 +7,29 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
+  /* smooth transition for theme change */
+  html, body {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900;
+    /* soft warm background with subtle texture */
+    background: linear-gradient(180deg, #fffaf5 0%, #fff8f2 50%, #fff6ee 100%);
+    color: #0f172a;
+  }
+
+  /* Dark mode overrides when .dark is present on <html> (Tailwind class strategy) */
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-qwipo-primary hover:bg-qwipo-secondary text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    /* prominent gradient primary button used across app */
+    @apply text-white font-semibold py-2 px-5 rounded-xl transition-transform duration-200;
+    background: linear-gradient(90deg, #6366f1 0%, #ec4899 100%);
+    box-shadow: 0 6px 18px rgba(99,102,241,0.18), 0 2px 6px rgba(236,72,153,0.08);
   }
 
   .btn-secondary {
@@ -30,11 +45,65 @@
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6;
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.95));
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
 
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(15,23,42,0.06);
+  }
+
+  /* Dark theme variants for common components */
+  .dark .card {
+    @apply bg-gray-800 border-gray-700 text-gray-100;
+  }
+
+  .dark .btn-secondary {
+    @apply bg-gray-700 hover:bg-gray-600 text-gray-100;
+  }
+
+  .dark .btn-outline {
+    @apply border-gray-600 text-gray-100 hover:bg-gray-700 hover:text-white;
+  }
+
+  .dark .input-field {
+    @apply bg-gray-800 border-gray-700 text-gray-100;
+  }
+
+  /* Make elements that use bg-white adapt in dark mode for better contrast */
+  .dark .bg-white {
+    @apply bg-slate-900;
+  }
+
+  /* Global fallback: override common utility background classes when dark mode is active.
+     This helps convert many components that use `bg-white`, `bg-white/*`, or light gray
+     utility classes into appropriate dark surfaces without editing every file. */
+  .dark [class*="bg-white"] {
+    background-color: #0f172a !important; /* slate-900 */
+  }
+
+  /* translucent white utilities like bg-white/10, bg-white/20, bg-white/95 */
+  .dark [class*="bg-white/"] {
+    background-color: rgba(15,23,42,0.6) !important;
+  }
+
+  /* common light gray backgrounds used across the app */
+  .dark [class*="bg-gray-50"],
+  .dark [class*="bg-gray-100"],
+  .dark [class*="bg-gray-200"] {
+    background-color: #071025 !important;
+  }
+
+  /* ensure borders that assume light background are toned down */
+  .dark [class*="border-gray-200"] {
+    border-color: #1f2937 !important; /* gray-800 */
+  }
+
+
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-qwipo-primary focus:border-transparent;
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent bg-white;
   }
 
   .loading-spinner {
@@ -42,11 +111,11 @@
   }
 
   .gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #ff7a05 100%);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #ff7a05 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

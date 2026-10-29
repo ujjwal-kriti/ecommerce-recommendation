@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema({
     zipCode: String,
     country: { type: String, default: 'India' }
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
   phone: {
     type: String,
     required: true

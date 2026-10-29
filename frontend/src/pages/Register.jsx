@@ -68,7 +68,7 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center gradient-bg px-4 sm:px-6 lg:px-8 py-12">
       <div className="max-w-2xl w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+  <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gradient mb-2">Join Qwipo AI</h1>
             <p className="text-gray-600">Create your account and start getting smart recommendations</p>

@@ -61,9 +61,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiService.login(email, password);
       if (response.success) {
-        dispatch({ type: 'SET_USER', payload: response.data.user });
+        // Ensure we store the user object returned by the API
+        const user = response.data.user || response.data;
+        dispatch({ type: 'SET_USER', payload: user });
         toast.success('Login successful!');
-        return { success: true };
+        return { success: true, user };
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';

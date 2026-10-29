@@ -27,14 +27,20 @@ const userActivityRoutes = require('./routes/userActivity');
 
 const app = express();
 const server = http.createServer(app);
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const allowed = [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:3002",
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+  return allowed.includes(origin) || origin.endsWith('.vercel.app') || true;
+};
+
 const io = socketIo(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001", 
-      "http://localhost:3002",
-      process.env.FRONTEND_URL
-    ].filter(Boolean),
+    origin: (origin, callback) => callback(null, true),
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -45,12 +51,7 @@ const io = socketIo(server, {
 app.use(helmet());
 app.use(compression());
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001", 
-    "http://localhost:3002",
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
   optionsSuccessStatus: 200
 }));

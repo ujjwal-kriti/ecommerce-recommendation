@@ -8,6 +8,9 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import Reports from "./pages/Reports";
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRoute from './components/common/AdminRoute';
+import AdminUsers from './pages/AdminUsers';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -24,7 +27,6 @@ import Orders from './pages/Orders';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
-import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -76,13 +78,14 @@ function App() {
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="analytics" element={<Analytics />} />
+                <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                 {/* Business Insights page removed */}
                 <Route path="profile" element={<Profile />} />
                 <Route path="reports" element={<Reports />} />
                 {/* Performance page removed */}
-                <Route path="settings" element={<Settings />} />
               </Route>
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              
               {/* 404 route */}
               <Route path="*" element={<NotFound />} />
             </Routes>

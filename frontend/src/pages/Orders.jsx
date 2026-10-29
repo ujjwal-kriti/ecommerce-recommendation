@@ -174,30 +174,85 @@ const Orders = () => {
         </div>
 
         <div className="flex space-x-2">
-          <button
-            onClick={() => navigate(`/orders/${order._id}`)}
-            className="text-sm text-qwipo-primary hover:text-qwipo-secondary font-medium"
-          >
-            View Details
-          </button>
-
-          {(order.orderStatus || order.status) === 'delivered' && (
-            <button className="text-sm bg-qwipo-primary text-white px-3 py-1 rounded-lg hover:bg-qwipo-secondary">
-              Reorder
+            <button
+              onClick={() => navigate(`/orders/${order._id}`)}
+              className="text-sm text-qwipo-primary hover:text-qwipo-secondary font-medium"
+            >
+              View Details
             </button>
-          )}
+
+            {(order.orderStatus || order.status) === 'delivered' && (
+              <button className="text-sm bg-qwipo-primary text-white px-3 py-1 rounded-lg hover:bg-qwipo-secondary">
+                Reorder
+              </button>
+            )}
+
+            {/* Cancel button (if order not delivered or already cancelled) */}
+            {!(order.orderStatus === 'delivered' || order.status === 'delivered' || order.orderStatus === 'cancelled' || order.status === 'cancelled') && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Are you sure you want to cancel this order?')) return;
+                  try {
+                    setLoading(true);
+                    // handle demo orders stored in localStorage
+                    if (String(order._id).startsWith('DEMO_')) {
+                      const demoOrders = JSON.parse(localStorage.getItem('demo_orders') || '[]');
+                      const updated = demoOrders.map(o => o._id === order._id ? { ...o, status: 'cancelled', orderStatus: 'cancelled' } : o);
+                      localStorage.setItem('demo_orders', JSON.stringify(updated));
+                      setOrders(prev => prev.map(o => o._id === order._id ? { ...o, orderStatus: 'cancelled', status: 'cancelled' } : o));
+                    } else {
+                      await apiService.post(`/orders/${order._id}/cancel`);
+                      // refresh orders list
+                      fetchOrders();
+                    }
+                  } catch (e) {
+                    console.error('Cancel failed', e);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg hover:bg-yellow-200"
+              >
+                Cancel
+              </button>
+            )}
+
+            {/* Delete button (allow deleting cancelled or demo orders) */}
+            {(order.orderStatus === 'cancelled' || order.status === 'cancelled' || String(order._id).startsWith('DEMO_')) && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Delete this order? This cannot be undone.')) return;
+                  try {
+                    setLoading(true);
+                    if (String(order._id).startsWith('DEMO_')) {
+                      const demoOrders = JSON.parse(localStorage.getItem('demo_orders') || '[]');
+                      const filtered = demoOrders.filter(o => o._id !== order._id);
+                      localStorage.setItem('demo_orders', JSON.stringify(filtered));
+                      setOrders(prev => prev.filter(o => o._id !== order._id));
+                    } else {
+                      await apiService.delete(`/orders/${order._id}`);
+                      // refresh orders list
+                      fetchOrders();
+                    }
+                  } catch (e) {
+                    console.error('Delete failed', e);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="text-sm bg-red-50 text-red-700 px-3 py-1 rounded-lg hover:bg-red-100"
+              >
+                Delete
+              </button>
+            )}
         </div>
       </div>
     </div>
   );
 
+  // Only show the "All Orders" filter button per request
   const filters = [
-    { key: 'all', label: 'All Orders' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'processing', label: 'Processing' },
-    { key: 'shipped', label: 'Shipped' },
-    { key: 'delivered', label: 'Delivered' },
-    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'all', label: 'All Orders' }
   ];
 
   return (

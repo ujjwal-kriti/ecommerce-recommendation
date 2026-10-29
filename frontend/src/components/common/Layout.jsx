@@ -18,13 +18,26 @@ import {
   LightBulbIcon,
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
+import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { useTheme } from '../../context/ThemeContext';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const { cartItems } = useCart();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const showBusinessHeader = location.pathname.startsWith('/dashboard/products');
+
+  const businessHeaderTabs = [
+    { key: 'all', label: 'All Products', icon: '🛍️' },
+    { key: 'fashion', label: 'Fashion', icon: '👗' },
+    { key: 'grocery', label: 'Grocery Store', icon: '🛒' },
+    { key: 'pharmacy', label: 'Pharmacy', icon: '💊' },
+  ];
+
+  const activeBt = new URLSearchParams(location.search).get('bt') || 'all';
 
   const cartItemCount = cartItems?.length || 0;
 
@@ -33,17 +46,28 @@ const Layout = () => {
     navigate('/');
   };
 
-  const navigation = [
+  // Show a reduced navigation for admin users (only Analytics & Reports)
+  const normalNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Products', href: '/dashboard/products', icon: CubeIcon },
     { name: 'Orders', href: '/dashboard/orders', icon: ClipboardDocumentListIcon },
     { name: 'ML Recommendations', href: '/dashboard/recommendations', icon: SparklesIcon },
     { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: LightBulbIcon },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-    // Performance page removed
-    { name: 'Reports', href: '/dashboard/reports', icon: DocumentChartBarIcon },
+    // analytics and reports are admin-only and intentionally omitted from normal navigation
     { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
   ];
+
+  const adminNavigation = [
+    // Admin Dashboard should point to the admin landing page
+    { name: 'Dashboard', href: '/dashboard/admin', icon: HomeIcon },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+    { name: 'Reports', href: '/dashboard/reports', icon: DocumentChartBarIcon },
+  ];
+
+  // If user is admin OR we're currently on an admin route, prefer the admin navigation.
+  const navigation = (user?.role === 'admin' || location.pathname.startsWith('/dashboard/admin'))
+    ? adminNavigation
+    : normalNavigation;
 
   const isActive = (path) => {
     if (path === '/dashboard') {
@@ -53,7 +77,7 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -65,8 +89,8 @@ const Layout = () => {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-48 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ height: '100vh' }}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+  <div className={`fixed inset-y-0 left-0 z-50 w-48 bg-white dark:bg-slate-900 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ height: '100vh' }}>
+  <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
           <h1 className="text-xl font-bold text-qwipo-primary">SmartRetail</h1>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -106,13 +130,6 @@ const Layout = () => {
         <div className="p-2 border-t border-gray-200 flex-shrink-0">
           <div className="space-y-1">
             <button
-              onClick={() => navigate('/settings')}
-              className="w-full group flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 transition-all duration-200"
-            >
-              <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-600" />
-              <span>Settings</span>
-            </button>
-            <button
               onClick={handleLogout}
               className="w-full group flex items-center px-3 py-2.5 text-sm font-medium text-red-700 rounded-lg hover:bg-red-50 transition-all duration-200"
             >
@@ -126,7 +143,7 @@ const Layout = () => {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-h-screen lg:ml-48">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-white shadow-sm flex-shrink-0">
+        <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 shadow-sm flex-shrink-0">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -135,13 +152,44 @@ const Layout = () => {
               <Bars3Icon className="h-6 w-6" />
             </button>
 
-            <div className="flex-1 flex justify-center lg:justify-start">
-              <h1 className="text-lg font-semibold text-gray-900 lg:hidden">
-                SmartRetail
-              </h1>
+            <div className="flex-1 flex items-center min-w-0">
+              {showBusinessHeader ? (
+                <div className="flex items-center gap-2 overflow-x-auto pr-4">
+                  {businessHeaderTabs.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => navigate(`/dashboard/products${tab.key === 'all' ? '' : `?bt=${tab.key}`}`)}
+                      className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm transition-all ${
+                        (activeBt === tab.key)
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-600'
+                      }`}
+                      aria-label={`Filter by ${tab.label}`}
+                    >
+                      <span className="mr-1">{tab.icon}</span>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <h1 className="text-lg font-semibold text-gray-900 lg:hidden">SmartRetail</h1>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Theme toggle button */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 text-gray-400 hover:text-gray-500 rounded-md transition-colors"
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label="Toggle color theme"
+              >
+                {theme === 'dark' ? (
+                  <SunIcon className="h-6 w-6 text-yellow-400" />
+                ) : (
+                  <MoonIcon className="h-6 w-6" />
+                )}
+              </button>
               <button
                 onClick={() => navigate('/notifications')}
                 className="p-2 text-gray-400 hover:text-gray-500 relative transition-colors"

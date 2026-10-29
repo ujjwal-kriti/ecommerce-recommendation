@@ -201,7 +201,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
 
   const ProductCard = ({ product }) => (
     <div
-      className="border rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow bg-gray-50 hover:bg-white"
+  className="border rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700"
       onClick={() => navigate(`/products/${product.id}`)}
     >
       <h4 className="font-medium text-sm text-gray-900 truncate">{product.name}</h4>
@@ -240,7 +240,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
         <div className={`rounded-2xl px-4 py-3 ${
           message.type === 'user'
             ? 'bg-qwipo-primary text-white'
-            : 'bg-white border border-gray-200'
+            : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700'
         }`}>
           <div className="whitespace-pre-wrap text-sm">{message.content}</div>
 
@@ -282,7 +282,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
   return (
     <div className="h-[calc(100vh-12rem)] flex flex-col bg-gray-50 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
+  <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-qwipo-primary to-qwipo-secondary rounded-full flex items-center justify-center">
@@ -327,7 +327,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
               <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                 <SparklesIcon className="h-4 w-4 text-gray-600" />
               </div>
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+              <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
@@ -343,7 +343,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
 
       {/* Quick suggestions */}
       {suggestions.length > 0 && messages.length <= 1 && (
-        <div className="p-4 bg-white border-t border-gray-200">
+  <div className="p-4 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-gray-700">
           <p className="text-sm font-medium text-gray-700 mb-3">Quick suggestions:</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {suggestions.map((category) => (
@@ -367,7 +367,7 @@ ${response.data.extractedText ? response.data.extractedText.substring(0, 500) : 
       )}
 
       {/* Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
+  <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-gray-700 p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();

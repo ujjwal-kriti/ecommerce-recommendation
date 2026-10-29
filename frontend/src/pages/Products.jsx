@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import apiService from '../services/apiService';
@@ -9,7 +9,6 @@ import {
   FunnelIcon,
   XMarkIcon,
   AdjustmentsHorizontalIcon,
-  BuildingStorefrontIcon,
   CubeIcon,
   ShoppingCartIcon,
   BoltIcon,
@@ -42,6 +41,7 @@ const Products = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { addToCart, isInCart, getItemQuantity } = useCart();
 
@@ -180,23 +180,12 @@ const Products = () => {
       categories: ['Health', 'Beauty', 'Medical Supplies', 'Personal Care']
     },
     retail: {
-      name: 'Retail Store',
-      icon: '🏪',
-      description: 'General merchandise & supplies',
-      categories: ['Electronics', 'Clothing', 'Home & Garden', 'Toys', 'Books']
+      name: 'Fashion',
+      icon: '👗',
+      description: 'Apparel, footwear & accessories',
+      categories: ['Clothing', 'Footwear', 'Accessories', 'Beauty']
     },
-    wholesale: {
-      name: 'Wholesale Business',
-      icon: '📦',
-      description: 'Bulk products & supplies',
-      categories: ['Office Supplies', 'Tools', 'Automotive', 'Electronics']
-    },
-    other: {
-      name: 'Other Business',
-      icon: '🏢',
-      description: 'Various business needs',
-      categories: []
-    }
+    
   };
 
   const handleBusinessTypeChange = (businessType) => {
@@ -206,6 +195,16 @@ const Products = () => {
       businessType: businessType === 'all' ? '' : businessType
     });
     setCurrentPage(1);
+
+    // sync URL query param for header pills and shareable links
+    const params = new URLSearchParams(location.search);
+    if (businessType === 'all') {
+      params.delete('bt');
+    } else {
+      params.set('bt', businessType);
+    }
+    const qs = params.toString();
+    navigate(qs ? `?${qs}` : '?');
     setLastFetchTime(0); // Force refresh
   };
 
@@ -407,6 +406,25 @@ const Products = () => {
     );
   };
 
+  // Sync state from URL (?bt=...) when arriving from header pills
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const bt = params.get('bt');
+    if (bt && businessTypeConfigs[bt] && bt !== activeBusinessType) {
+      setActiveBusinessType(bt);
+      setFilters(prev => ({ ...prev, businessType: bt }));
+      setCurrentPage(1);
+      setLastFetchTime(0);
+    }
+    if (!bt && activeBusinessType !== 'all') {
+      setActiveBusinessType('all');
+      setFilters(prev => ({ ...prev, businessType: '' }));
+      setCurrentPage(1);
+      setLastFetchTime(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -415,6 +433,21 @@ const Products = () => {
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="text-gray-600">Discover products for your business</p>
         </div>
+
+        {/* Top-right search (desktop) */}
+        <form onSubmit={handleSearch} className="hidden sm:flex items-center space-x-3 ml-auto">
+          <div className="relative w-64 lg:w-96">
+            <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products..."
+              className="input-field pl-10 h-10"
+            />
+          </div>
+          <button type="submit" className="btn-primary h-10 px-4">Search</button>
+        </form>
 
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -425,8 +458,8 @@ const Products = () => {
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="card">
+      {/* Search Bar (mobile) */}
+      <div className="card sm:hidden">
         <form onSubmit={handleSearch} className="flex space-x-4">
           <div className="flex-1 relative">
             <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
@@ -444,58 +477,7 @@ const Products = () => {
         </form>
       </div>
 
-      {/* Business Type Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <BuildingStorefrontIcon className="h-5 w-5 text-gray-600" />
-            <h3 className="font-medium text-gray-900">Shop by Business Type</h3>
-          </div>
-          {user?.businessType && (
-            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-              Your type: {businessTypeConfigs[user.businessType]?.name || user.businessType}
-            </span>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-          {Object.entries(businessTypeConfigs).map(([key, config]) => (
-            <button
-              key={key}
-              onClick={() => handleBusinessTypeChange(key)}
-              className={`p-3 rounded-lg text-center transition-all hover:shadow-md ${
-                activeBusinessType === key
-                  ? 'bg-blue-500 text-white shadow-md'
-                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
-              } ${key === user?.businessType ? 'ring-2 ring-blue-200' : ''}`}
-            >
-              <div className="text-lg mb-1">{config.icon}</div>
-              <div className="font-medium text-xs">{config.name}</div>
-              {key === user?.businessType && (
-                <div className="text-xs mt-1 opacity-75">Recommended</div>
-              )}
-            </button>
-          ))}
-        </div>
-        
-        {activeBusinessType !== 'all' && businessTypeConfigs[activeBusinessType].categories.length > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800 mb-2">
-              <span className="font-medium">{businessTypeConfigs[activeBusinessType].name}:</span> {businessTypeConfigs[activeBusinessType].description}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {businessTypeConfigs[activeBusinessType].categories.map((category) => (
-                <span
-                  key={category}
-                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
-                >
-                  {category}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Business Type filter moved to header pills; section removed */}
 
       {/* Filters */}
       <div className={`card ${showFilters || 'hidden'} sm:block`}>

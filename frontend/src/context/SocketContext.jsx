@@ -12,7 +12,8 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const newSocket = io('http://localhost:5000', {
+      const socketServerUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const newSocket = io(socketServerUrl, {
         transports: ['polling'], // Use polling only to avoid WebSocket issues
         reconnectionAttempts: 3,
         reconnectionDelay: 2000,

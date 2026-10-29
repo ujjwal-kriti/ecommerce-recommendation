@@ -187,7 +187,7 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-slate-900 overflow-hidden">
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50"></div>
@@ -218,7 +218,7 @@ const LandingPage = () => {
 
       {/* Navigation */}
       <nav className={`fixed w-full z-50 transition-all duration-500 ${
-        isScrolled ? 'bg-white/95 backdrop-blur-md shadow-xl' : 'bg-transparent'
+        isScrolled ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl' : 'bg-transparent'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -228,7 +228,7 @@ const LandingPage = () => {
                 <SparklesIcon className="h-6 w-6 text-white animate-pulse" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300">
-                Qwipo AI
+                SmartRetail
               </span>
             </div>
 
@@ -270,7 +270,7 @@ const LandingPage = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-md border-t animate-slide-down">
+          <div className="md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t animate-slide-down">
             <div className="px-2 pt-2 pb-3 space-y-1">
               <a href="#features" className="block px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-300">Features</a>
               <a href="#testimonials" className="block px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-300">Testimonials</a>
@@ -331,7 +331,7 @@ const LandingPage = () => {
             <div className={`inline-flex items-center px-8 py-4 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-sm font-medium mb-8 animate-bounce-in hover:scale-110 hover:shadow-xl transition-all duration-500 cursor-pointer group ${isVisible.hero ? 'animate-slide-up' : 'opacity-0'}`}>
               <SparklesIcon className="h-5 w-5 mr-2 animate-spin group-hover:animate-wiggle" />
               <span className="animate-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:animate-heartbeat">
-                AI-Powered B2B Marketplace
+                AI-Powered  Marketplace
               </span>
               <div className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse group-hover:animate-bounce"></div>
             </div>
@@ -349,7 +349,7 @@ const LandingPage = () => {
 
             {/* Animated Subheading with Interactive Effects */}
             <p className={`text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed hover:text-gray-800 transition-colors duration-300 ${isVisible.hero ? 'animate-slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.8s' }}>
-              Transform your B2B business with{' '}
+              Transform your business with{' '}
               <span className="text-blue-600 font-semibold hover:text-purple-600 hover:scale-105 transition-all duration-300 inline-block cursor-pointer">
                 AI-powered product discovery
               </span>
@@ -426,7 +426,7 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className={`group bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-700 hover:-translate-y-4 relative overflow-hidden cursor-pointer ${isVisible.features ? 'animate-slide-up' : 'opacity-0'}`}
+                className={`group bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-700 hover:-translate-y-4 relative overflow-hidden cursor-pointer ${isVisible.features ? 'animate-slide-up' : 'opacity-0'}`}
                 style={{ 
                   animationDelay: `${index * 0.1}s`,
                   transitionDelay: feature.delay 

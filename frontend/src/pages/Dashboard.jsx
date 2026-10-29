@@ -1,4 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
+import groceryImg from "./grocery.jpg";
+import fashionImg from "./fashion.jpg";
+// Fix misspelling and use consistent variable name
+import pharmacyImg from "./pharmacy.jpg";
 import {
   CubeIcon,
   ChartBarIcon,
@@ -14,6 +18,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/apiService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import HeroCarousel from '../components/common/HeroCarousel';
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -140,6 +145,48 @@ const Dashboard = () => {
         ].slice(0, 10);
 
         setDashboardData(data);
+        // If backend didn't provide spending numbers, try to compute them from recent orders
+        if (!data.metrics.totalSpent || data.metrics.totalSpent === 0) {
+          try {
+            const ordersResp = await apiService.getOrders({ limit: 100 });
+            const orders = ordersResp && ordersResp.success ? ordersResp.data : [];
+            let computedTotal = 0;
+            let computedOrdersCount = 0;
+
+            orders.forEach((order) => {
+              try {
+                // Prefer a top-level totalAmount.grandTotal if present
+                const grand = order.totalAmount?.grandTotal ?? order.totalAmount?.grand_total ?? order.totalAmount?.total;
+                if (typeof grand === 'number' && grand > 0) {
+                  computedTotal += grand;
+                  computedOrdersCount += 1;
+                } else {
+                  // Otherwise sum item totals or price * qty
+                  const items = order.items || [];
+                  let orderSum = 0;
+                  items.forEach((it) => {
+                    const itemTotal = (it.total != null) ? it.total : ((it.price != null ? it.price : (it.productId?.price?.discountedPrice ?? it.product?.price?.discountedPrice ?? 0)) * (it.quantity || 1));
+                    orderSum += Number(itemTotal) || 0;
+                  });
+                  if (orderSum > 0) {
+                    computedTotal += orderSum;
+                    computedOrdersCount += 1;
+                  }
+                }
+              } catch (e) {
+                // ignore individual order parse errors
+              }
+            });
+
+            if (computedTotal > 0) {
+              data.metrics.totalSpent = computedTotal;
+              data.metrics.averageOrderValue = (data.metrics.totalPurchases && data.metrics.totalPurchases > 0) ? (computedTotal / data.metrics.totalPurchases) : (computedTotal / Math.max(1, computedOrdersCount));
+              setDashboardData({ ...data });
+            }
+          } catch (e) {
+            console.debug('Failed to compute spending from orders fallback', e?.message || e);
+          }
+        }
       } else {
         // Set fallback dashboard data (include demo orders)
         const recentPurchases = [];
@@ -303,44 +350,69 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        {/* Welcome Section (moved above and made smaller) */}
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg p-2 text-white shadow-lg">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2">
             <div className="flex-1">
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                Welcome back, {user?.name}! 👋
+              <h1 className="text-base md:text-lg font-medium mb-0.5">
+                Welcome back, {user?.name}
               </h1>
-              <p className="text-blue-100 text-lg">
+              <p className="text-white/80 text-xs">
                 {user?.businessName} • {user?.businessType?.charAt(0).toUpperCase() + user?.businessType?.slice(1)}
               </p>
-              <p className="text-blue-200 mt-2 text-sm">
-                🤖 Advanced ML algorithms are analyzing your behavior patterns
+              <p className="text-white/70 mt-0.5 text-[11px]">
+                Advanced ML algorithms are analyzing your behavior patterns
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-              <button
-                onClick={() => navigate('/dashboard/ai-assistant')}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm"
-              >
-                <SparklesIcon className="h-4 w-4" />
-                <span>Ask AI Assistant</span>
-              </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-medium py-1.5 px-3 rounded-md transition-all duration-200 flex items-center justify-center space-x-2 text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowTrendingUpIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <ArrowTrendingUpIcon className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
                 <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
               </button>
             </div>
           </div>
         </div>
 
+        {/* Category Hero Carousel */}
+        <HeroCarousel
+          slides={[
+            {
+              id: 'grocery',
+              title: 'Daily essentials at best prices',
+              subtitle: 'Stock up on groceries, beverages, and household needs with personalized deals.',
+              imageUrl: groceryImg,
+              ctaText: 'Shop Grocery',
+              ctaLink: '/dashboard/products?bt=grocery',
+            },
+            {
+              id: 'pharmacy',
+              title: 'Healthcare supplies you can trust',
+              subtitle: 'Popular medicines, wellness and personal care items curated for your store.',
+              imageUrl: pharmacyImg,
+              ctaText: 'Shop Pharmacy',
+              ctaLink: '/dashboard/products?bt=pharmacy',
+            },
+            {
+              id: 'fashion',
+              title: 'Trending styles for your customers',
+              subtitle: 'Apparel, footwear and accessories — refreshed regularly with new arrivals.',
+              imageUrl: fashionImg,
+              ctaText: 'Explore Fashion',
+              ctaLink: '/dashboard/products?bt=fashion',
+            },
+          ]}
+          autoPlay
+          interval={6000}
+        />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat) => (
-            <div key={stat.name} className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+            <div key={stat.name} className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-700">
               <div className="flex items-center">
                 <div className={`${stat.color} p-3 rounded-xl`}>
                   <stat.icon className="h-6 w-6 text-white" />
@@ -375,7 +447,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Recommendations Section */}
           <div className="xl:col-span-2">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-2 sm:mb-0">
                   🎯 Personalized Recommendations
@@ -398,7 +470,7 @@ const Dashboard = () => {
                       onClick={() => navigate(`products/${rec.product?._id || rec.productId}`)}
                     >
                       <div className="flex items-start space-x-4">
-                        <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border border-gray-200">
+                        <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
                           {rec.product?.images?.[0] ? (
                             <img
                               src={rec.product.images[0]}
@@ -448,7 +520,7 @@ const Dashboard = () => {
           {/* Sidebar Section */}
           <div className="space-y-6">
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 mb-4">⚡ Quick Actions</h3>
               <div className="space-y-3">
                 <button
@@ -458,13 +530,7 @@ const Dashboard = () => {
                   <CubeIcon className="h-5 w-5 text-blue-600" />
                   <span className="font-medium">Browse Products</span>
                 </button>
-                <button
-                  onClick={() => navigate('ai-assistant')}
-                  className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-blue-50 transition-colors flex items-center space-x-3"
-                >
-                  <SparklesIcon className="h-5 w-5 text-blue-600" />
-                  <span className="font-medium">Ask AI Assistant</span>
-                </button>
+                {/* Floating AI Assistant button is now available in the bottom-right corner */}
                 <button
                   onClick={() => navigate('orders')}
                   className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-blue-50 transition-colors flex items-center space-x-3"
@@ -483,7 +549,7 @@ const Dashboard = () => {
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 mb-4">🕒 Recent Activity</h3>
               {dashboardData?.recentActivity?.recentPurchases?.length > 0 ? (
                 <div className="space-y-3">
@@ -511,6 +577,26 @@ const Dashboard = () => {
                 <p className="text-gray-500 text-sm">No recent activity</p>
               )}
             </div>
+          </div>
+          {/* Floating AI Assistant: circular icon with an expanding label on hover */}
+          <div className="fixed bottom-6 right-6 z-50 flex items-center group">
+            <button
+              onClick={() => navigate('/dashboard/ai-assistant')}
+              aria-label="Ask AI Assistant"
+              title="Ask AI Assistant"
+              className="hidden sm:inline-flex mr-3 items-center bg-transparent text-gray-900 px-3 py-1.5 rounded-full transform transition-all duration-200 opacity-0 group-hover:opacity-100 group-focus:opacity-100 translate-x-2 group-hover:-translate-x-0 focus:outline-none"
+            >
+              <span className="text-sm font-medium relative -top-1">hii i am ur agent 😊</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/dashboard/ai-assistant')}
+              aria-label="Ask AI Assistant"
+              title="Ask AI Assistant"
+              className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-xl hover:scale-105 transform transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400"
+            >
+              <SparklesIcon className="h-6 w-6" />
+            </button>
           </div>
         </div>
     </div>

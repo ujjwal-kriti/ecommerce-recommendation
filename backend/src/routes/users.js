@@ -3,7 +3,54 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
+const { authorize } = require('../middleware/auth');
 const router = express.Router();
+
+// @desc    Get all users (admin)
+// @route   GET /api/users
+// @access  Admin
+router.get('/', protect, authorize('admin'), async (req, res) => {
+  try {
+    // Get all users with purchase history product populated
+    const users = await User.find().select('-password').populate('purchaseHistory.productId', 'name').lean();
+
+    const result = users.map(u => {
+      // Determine most recent purchase
+      const purchases = (u.purchaseHistory || []).slice();
+      purchases.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const mostRecent = purchases[0]?.productId?.name || null;
+
+      // Determine most frequent product
+      const freq = {};
+      purchases.forEach(p => {
+        const pid = p.productId?._id?.toString();
+        if (pid) freq[pid] = (freq[pid] || 0) + p.quantity || 1;
+      });
+      let mostFreqName = null;
+      if (Object.keys(freq).length > 0) {
+        const maxPid = Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0];
+        const found = purchases.find(p => p.productId?._id?.toString() === maxPid);
+        mostFreqName = found?.productId?.name || null;
+      }
+
+      // Choose most frequent if count > 1, else most recent
+      let recentOrFrequent = mostRecent;
+      if (mostFreqName && Object.values(freq).some(c => c > 1)) recentOrFrequent = mostFreqName;
+
+      return {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        recentProductBought: recentOrFrequent
+      };
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Get users error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // @desc    Update user profile
 // @route   PUT /api/users/profile

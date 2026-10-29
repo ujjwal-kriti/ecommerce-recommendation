@@ -4,7 +4,8 @@ import requestManager from '../utils/requestManager';
 
 class ApiService {
   constructor() {
-    this.baseURL = '/api';
+    const apiHost = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+    this.baseURL = `${apiHost}/api`;
     this.token = localStorage.getItem('qwipo_token');
 
     // Create axios instance
@@ -84,6 +85,10 @@ class ApiService {
       this.setToken(response.data.token);
     }
     return response;
+  }
+
+  async createDemoAdmin(email, password, name) {
+    return await this.api.post('/auth/create-demo-admin', { email, password, name });
   }
 
   async getCurrentUser() {
@@ -265,14 +270,47 @@ class ApiService {
     try {
       // Try to get orders from backend
       const response = await this.api.get(`/orders?${queryString}`);
-      
+
       // Also get demo orders from localStorage
       const demoOrders = JSON.parse(localStorage.getItem('demo_orders') || '[]');
-      
-      // Extract backend orders correctly (could be response.data or response.data.data)
-      const backendOrders = response.data?.data || response.data || [];
+
+      // Backend responses may have different shapes depending on endpoint/pagination.
+      // Normalize to an array of order objects.
+      let backendOrders = [];
+
+      // `response` here is already the interceptor-unwrapped body (response.data from axios),
+      // but support multiple possible shapes for safety.
+      if (!response) {
+        backendOrders = [];
+      } else if (Array.isArray(response)) {
+        backendOrders = response;
+      } else if (Array.isArray(response.data)) {
+        backendOrders = response.data;
+      } else if (Array.isArray(response.data?.data)) {
+        backendOrders = response.data.data;
+      } else if (Array.isArray(response.orders)) {
+        backendOrders = response.orders;
+      } else if (Array.isArray(response.data?.orders)) {
+        backendOrders = response.data.orders;
+      } else if (Array.isArray(response.data?.data?.orders)) {
+        backendOrders = response.data.data.orders;
+      } else if (Array.isArray(response.data?.orders?.orders)) {
+        // edge-case nested shape
+        backendOrders = response.data.orders.orders;
+      } else if (response?.data?.orders && Array.isArray(response.data.orders)) {
+        backendOrders = response.data.orders;
+      } else if (response?.orders && Array.isArray(response.orders)) {
+        backendOrders = response.orders;
+      } else if (response?.data && response.data.orders) {
+        backendOrders = Array.isArray(response.data.orders) ? response.data.orders : [];
+      } else if (response?.data && response.data.orders === undefined && response?.orders === undefined) {
+        // If response.data looks like { orders, pagination } but not nested, try to pick `.data.orders` or `.orders`
+        // fallback: if response.data has `orders` property as object, try to use it
+        backendOrders = [];
+      }
+
       const ordersArray = Array.isArray(backendOrders) ? backendOrders : [];
-      
+
       // Combine backend orders with demo orders
       const allOrders = [...ordersArray, ...demoOrders];
       
@@ -382,6 +420,10 @@ class ApiService {
 
   async getDashboardData() {
     return await this.api.get('/users/dashboard');
+  }
+
+  async getAdminUsers() {
+    return await this.api.get('/users');
   }
 
   // Analytics APIs

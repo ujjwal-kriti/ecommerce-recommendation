@@ -183,4 +183,75 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
+// @desc    Cancel an order (user can cancel own order if not delivered)
+// @route   POST /api/orders/:id/cancel
+// @access  Private
+router.post('/:id/cancel', protect, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Only owner or admin can cancel
+    if (order.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    if (order.orderStatus === 'delivered') {
+      return res.status(400).json({ success: false, message: 'Cannot cancel a delivered order' });
+    }
+
+    if (order.orderStatus === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Order already cancelled' });
+    }
+
+    order.orderStatus = 'cancelled';
+    await order.save();
+
+    // Restock products (best-effort)
+    try {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.productId, { $inc: { 'inventory.stock': item.quantity } });
+      }
+    } catch (e) {
+      logger.warn('Failed to restock products after cancellation', e);
+    }
+
+    res.json({ success: true, data: order });
+  } catch (error) {
+    logger.error('Cancel order error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @desc    Delete an order
+// @route   DELETE /api/orders/:id
+// @access  Private (owner) or Admin
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Only owner or admin can delete
+    if (order.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Prevent deleting delivered orders by non-admins
+    if (order.orderStatus === 'delivered' && req.user.role !== 'admin') {
+      return res.status(400).json({ success: false, message: 'Cannot delete a delivered order' });
+    }
+
+    await Order.deleteOne({ _id: order._id });
+
+    res.json({ success: true, message: 'Order deleted' });
+  } catch (error) {
+    logger.error('Delete order error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;
